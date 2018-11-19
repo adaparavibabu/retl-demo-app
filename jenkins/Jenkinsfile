@@ -15,8 +15,6 @@ node {
                 """
        }
        stage('Deploy to PreProd'){
-           //sh '''mkdir -p ${WORKSPACE}/deploy'''
-           // checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'deploy']], submoduleCfg: [], userRemoteConfigs: [[url: 'https://github.com/adaparavibabu/retl-demo-app.git']]])
            sh returnStdout: true, script: """kubectl config set-context \$(kubectl config current-context) --namespace=ns-preprod-env &&
                cd ${WORKSPACE}/charts/vote-app-chart && sed -i 's/azure-vote-front:v1/azure-vote-front:${params.RELEASE_VERSION}/g' vote-app.yml && kubectl apply -f vote-app.yml"""
        }
