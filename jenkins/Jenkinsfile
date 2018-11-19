@@ -1,0 +1,29 @@
+#!groovy
+node {
+    properties([gitLabConnection(''), [$class: 'RebuildSettings', autoRebuild: false, rebuildDisabled: false], parameters([string(defaultValue: 'v1', description: '', name: 'RELEASE_VERSION', trim: false)])]) 
+    timestamps {
+        stage('Build') {
+          echo "${params.RELEASE_VERSION}"
+           git 'https://github.com/adaparavibabu/retl-demo-app.git'
+           sh returnStdout: true, script: """cd "${WORKSPACE}/apps/demo-vote" && docker build ./azure-vote -t obcontainerregistry.azurecr.io/azure-vote-front:"${params.RELEASE_VERSION}"
+"""
+          
+       }
+       stage('Publish') {
+           sh returnStdout: true, script: """az acr login --name obContainerRegistry &&
+                docker push obcontainerregistry.azurecr.io/azure-vote-front:"${params.RELEASE_VERSION}"
+                """
+       }
+       stage('Deploy to PreProd'){
+           //sh '''mkdir -p ${WORKSPACE}/deploy'''
+           // checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'deploy']], submoduleCfg: [], userRemoteConfigs: [[url: 'https://github.com/adaparavibabu/retl-demo-app.git']]])
+           sh returnStdout: true, script: """kubectl config set-context \$(kubectl config current-context) --namespace=ns-preprod-env &&
+               cd ${WORKSPACE}/charts/vote-app-chart && sed -i 's/azure-vote-front:v1/azure-vote-front:${params.RELEASE_VERSION}/g' vote-app.yml && kubectl apply -f vote-app.yml"""
+       }
+       stage('Deploy to Prod'){
+           sh returnStdout: true, script: """kubectl config set-context \$(kubectl config current-context) --namespace=ns-prod-env &&
+               cd ${WORKSPACE}/charts/vote-app-chart && kubectl apply -f vote-app.yml"""
+       }       
+   } 
+     
+}
